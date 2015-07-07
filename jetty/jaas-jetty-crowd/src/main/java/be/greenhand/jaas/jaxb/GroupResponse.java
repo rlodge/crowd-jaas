@@ -16,55 +16,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package be.greenhand.jaas.jetty.jaxb;
+package be.greenhand.jaas.jaxb;
 
 import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlRootElement(name="user")
-public class UserResponse {
+@XmlRootElement(name="group")
+public class GroupResponse {
 	@XmlAttribute
 	public String name;
 	
 	public Link link;
-	
-	@XmlElement(name="first-name")
-	public String firstName;
-	
-	@XmlElement(name="last-name")
-	public String lastName;
-	
-	@XmlElement(name="display-name")
-	public String displayName;
-	
-	public String email;
-	public Password password;
+	public String description;
+	public String type;
 	public boolean active;
 	public Attributes attributes;
 	
-	
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("UserResponse [name=").append(name).append(", link=")
-				.append(link).append(", firstName=").append(firstName)
-				.append(", lastName=").append(lastName)
-				.append(", displayName=").append(displayName)
-				.append(", email=").append(email).append(", password=")
-				.append(password).append(", active=").append(active)
-				.append(", attributes=").append(attributes).append("]");
-		return builder.toString();
-	}
-}
-
-class Password {
-	public Link link;
-
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		builder.append("Password [link=").append(link).append("]");
+		builder.append("GroupResponse [name=").append(name).append(", link=")
+				.append(link).append(", description=").append(description)
+				.append(", type=").append(type).append(", active=")
+				.append(active).append(", attributes=").append(attributes)
+				.append("]");
 		return builder.toString();
 	}
 }

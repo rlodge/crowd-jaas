@@ -16,38 +16,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package be.greenhand.jaas.jetty;
+package be.greenhand.jaas;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URLEncoder;
-import java.rmi.RemoteException;
-import java.security.Principal;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import javax.security.auth.Subject;
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.login.FailedLoginException;
-import javax.security.auth.login.LoginException;
-import javax.security.auth.spi.LoginModule;
-import javax.ws.rs.core.MediaType;
-
-import org.eclipse.jetty.plus.jaas.JAASPrincipal;
-import org.eclipse.jetty.plus.jaas.JAASRole;
-import org.eclipse.jetty.plus.jaas.callback.ObjectCallback;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import be.greenhand.jaas.jetty.jaxb.AuthenticatePost;
-import be.greenhand.jaas.jetty.jaxb.GroupResponse;
-import be.greenhand.jaas.jetty.jaxb.GroupsResponse;
-import be.greenhand.jaas.jetty.jaxb.UserResponse;
-
+import be.greenhand.jaas.jaxb.AuthenticatePost;
+import be.greenhand.jaas.jaxb.GroupResponse;
+import be.greenhand.jaas.jaxb.GroupsResponse;
+import be.greenhand.jaas.jaxb.UserResponse;
+import be.greenhand.jaas.principal.JAASRole;
+import be.greenhand.jaas.principal.JAASUser;
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.api.client.config.ClientConfig;
@@ -55,8 +31,31 @@ import com.sun.jersey.client.apache.ApacheHttpClient;
 import com.sun.jersey.client.apache.config.ApacheHttpClientConfig;
 import com.sun.jersey.client.apache.config.ApacheHttpClientState;
 import com.sun.jersey.client.apache.config.DefaultApacheHttpClientConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.security.auth.Subject;
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.PasswordCallback;
+import javax.security.auth.login.FailedLoginException;
+import javax.security.auth.login.LoginException;
+import javax.security.auth.spi.LoginModule;
+import javax.ws.rs.core.MediaType;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.rmi.RemoteException;
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class CrowdLoginModule implements LoginModule {
+
 	private static final Logger LOG = LoggerFactory.getLogger(CrowdLoginModule.class);
 
 	private static final String APP_NAME = "applicationName";
@@ -124,7 +123,7 @@ public class CrowdLoginModule implements LoginModule {
 			callbackHandler.handle(callbacks);
 
 			String username = ((NameCallback) callbacks[0]).getName();
-			String password = (String) ((ObjectCallback) callbacks[1]).getObject();
+			String password = String.valueOf(((PasswordCallback) callbacks[1]).getPassword());
 
 			if (username == null || password == null) {
 				authenticated = false;
@@ -152,7 +151,7 @@ public class CrowdLoginModule implements LoginModule {
 
 		try {
 			// create Jetty JAASPrincipal
-			userPrincipal = new JAASPrincipal(currentUser.name);
+			userPrincipal = new JAASUser(currentUser.name);
 
 			// create Jetty JAASRole
 			rolePrincipals = getUserGroups(currentUser.name);
@@ -217,7 +216,7 @@ public class CrowdLoginModule implements LoginModule {
 	private Callback[] configureCallbacks() {
 		Callback[] callbacks = new Callback[2];
 		callbacks[0] = new NameCallback("Enter user name");
-		callbacks[1] = new ObjectCallback();
+		callbacks[1] = new PasswordCallback("Enter password", false);
 		return callbacks;
 	}
 
@@ -319,7 +318,7 @@ public class CrowdLoginModule implements LoginModule {
 		}
 
 		// Add the specified supplemental roles to the user
-		results.addAll(getSupplementalRoles());
+		results.addAll(getSupplementalRoles(results));
 
 		return results;
 	}
@@ -372,18 +371,33 @@ public class CrowdLoginModule implements LoginModule {
 		}
 	}
 
-	private Set<JAASRole> getSupplementalRoles() {
+	private Set<JAASRole> getSupplementalRoles(final Set<JAASRole> results) {
 		Set rolesRet = new HashSet();
 		String defaultValue = "user";
 		Object object = options.get(SUPPLEMENTAL_ROLES);
 		if (object != null) {
-			String[] roles = ((String) object).split(",");
+			String[] roleSets = ((String) object).split(":");
 
-			for(String role : roles) {
-				if (LOG.isDebugEnabled())
-					LOG.debug("Adding suplemental role: " + role);
-				rolesRet.add(new JAASRole(role));
+			Map<String, String[]> supplementalRoleMap = new HashMap<>(roleSets.length);
+
+			for (String roleSet : roleSets) {
+				String[] roleSetSegments = roleSet.split("=");
+				String forRole = roleSetSegments[0];
+				String[] getRoles = roleSetSegments[1].split(",");
+				supplementalRoleMap.put(forRole, getRoles);
 			}
+
+			for (JAASRole result : results) {
+				if (supplementalRoleMap.containsKey(result.getName())) {
+					String[] getRoles = supplementalRoleMap.get(result.getName());
+					for(String role : getRoles ) {
+						if (LOG.isDebugEnabled())
+							LOG.debug("Adding supplemental role: " + role);
+						rolesRet.add(new JAASRole(role));
+					}
+				}
+			}
+
 		} else {
 			if (LOG.isDebugEnabled())
 				LOG.debug("Adding default suplemental role: " + defaultValue);

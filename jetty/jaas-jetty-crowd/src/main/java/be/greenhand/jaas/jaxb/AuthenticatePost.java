@@ -16,20 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package be.greenhand.jaas.jetty.jaxb;
-
-import java.util.List;
+package be.greenhand.jaas.jaxb;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlRootElement(name="groups")
-public class GroupsResponse {
-	public List<GroupResponse> group;
-
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		builder.append("GroupsResponse [group=").append(group).append("]");
-		return builder.toString();
-	}
+@XmlRootElement(name="password")
+public class AuthenticatePost {
+	public String value;
 }
